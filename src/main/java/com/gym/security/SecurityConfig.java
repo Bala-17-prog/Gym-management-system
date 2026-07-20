@@ -36,7 +36,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/user/register", "/api/user/login", "/api/user/forgot-password").permitAll()
-                .requestMatchers("/*.html", "/*.css", "/*.js", "/images/**").permitAll()
+                .requestMatchers("/", "/*.html", "/*.css", "/*.js", "/images/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Other endpoints will be protected by method security @PreAuthorize
                 .anyRequest().authenticated()
