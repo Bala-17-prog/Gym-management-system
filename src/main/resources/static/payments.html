@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    if (sessionStorage.getItem("adminLoggedIn") !== "true") {
+      window.location.href = "admin-login.html";
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payments - Power Gym</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h2>⚡ Power Gym</h2>
+      <nav class="nav-links">
+        <a href="index.html">📊 Dashboard</a>
+        <a href="admin-members.html">👥 Members</a>
+        <a href="trainers.html">🏋️ Trainers</a>
+        <a href="classes.html">📅 Classes</a>
+        <a href="payments.html" class="active">💳 Payments</a>
+        <a href="attendance.html">🕒 Attendance</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>Payments</h1>
+          <p>Track membership dues and transactions.</p>
+        </div>
+        <button class="btn btn-primary" onclick="showModal('addPaymentModal')">+ Record Payment</button>
+      </div>
+
+      <div class="glass-card">
+        <table id="paymentsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Member ID</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Payment Modal -->
+  <div class="modal-backdrop" id="addPaymentModal">
+    <div class="glass-card modal-content">
+      <h2 id="modalTitle" style="margin-bottom: 1.5rem;">Record Payment</h2>
+      <form id="addPaymentForm" onsubmit="addPayment(event)">
+        <input type="hidden" id="pId">
+        <div class="form-group">
+          <label>Member ID (User ID)</label>
+          <input type="number" id="pUserId" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" step="0.01" id="pAmount" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="pStatus" class="form-control">
+            <option value="PAID">Paid</option>
+            <option value="PENDING">Pending</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 2rem;">
+          <button type="button" class="btn" style="background: rgba(255,255,255,0.1); color: white; flex: 1;" onclick="hideModal('addPaymentModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Save Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    function logoutAdmin() {
+      sessionStorage.removeItem("adminLoggedIn");
+      window.location.href = "admin-login.html";
+    }
+
+    function showModal(id) { document.getElementById(id).classList.add('show'); }
+    function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    async function loadPayments() {
+      const result = await callApi('/payments', 'GET');
+      if (result) {
+        const tbody = document.querySelector('#paymentsTable tbody');
+        tbody.innerHTML = '';
+        if (result.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #aaa;">No payments recorded yet.</td></tr>';
+            return;
+        }
+        result.forEach(p => {
+          const dateStr = new Date(p.paymentDate).toLocaleString();
+          const badgeClass = p.status === 'PAID' ? 'badge-success' : 'badge-pending';
+          const userName = p.user ? p.user.name : `ID: ${p.user.id}`;
+          
+          tbody.innerHTML += `
+            <tr>
+              <td>#${p.id}</td>
+              <td>${userName}</td>
+              <td><strong>$${p.amount.toFixed(2)}</strong></td>
+              <td>${dateStr}</td>
+              <td><span class="badge ${badgeClass}">${p.status}</span></td>
+              <td>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--primary); color: white;" onclick='editPayment(${JSON.stringify(p)})'>Edit</button>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--danger); color: white;" onclick="deletePayment(${p.id})">Delete</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+    }
+    
+    function editPayment(p) {
+      document.getElementById('pId').value = p.id;
+      document.getElementById('pUserId').value = p.user.id;
+      document.getElementById('pAmount').value = p.amount;
+      document.getElementById('pStatus').value = p.status;
+      document.getElementById('modalTitle').innerText = 'Edit Payment';
+      showModal('addPaymentModal');
+    }
+
+    async function deletePayment(id) {
+      if(confirm('Are you sure you want to delete this payment record?')) {
+        await callApi(`/payments/${id}`, 'DELETE');
+        loadPayments();
+      }
+    }
+
+    async function addPayment(e) {
+      e.preventDefault();
+      const id = document.getElementById('pId').value;
+      const data = {
+        user: { id: parseInt(document.getElementById('pUserId').value) },
+        amount: parseFloat(document.getElementById('pAmount').value),
+        status: document.getElementById('pStatus').value
+      };
+      
+      const method = id ? 'PUT' : 'POST';
+      const endpoint = id ? `/payments/${id}` : '/payments';
+      
+      const res = await callApi(endpoint, method, data);
+      if (res) {
+        hideModal('addPaymentModal');
+        document.getElementById('addPaymentForm').reset();
+        document.getElementById('pId').value = '';
+        document.getElementById('modalTitle').innerText = 'Record Payment';
+        loadPayments();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadPayments);
+  </script>
+</body>
+</html>

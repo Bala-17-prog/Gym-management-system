@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    if (sessionStorage.getItem("adminLoggedIn") !== "true") {
+      window.location.href = "admin-login.html";
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Power Gym - Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h2>⚡ Power Gym</h2>
+      <nav class="nav-links">
+        <a href="index.html" class="active">📊 Dashboard</a>
+        <a href="admin-members.html">👥 Members</a>
+        <a href="trainers.html">🏋️ Trainers</a>
+        <a href="classes.html">📅 Classes</a>
+        <a href="payments.html">💳 Payments</a>
+        <a href="attendance.html">🕒 Attendance</a>
+        <a href="admin-settings.html">⚙️ Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>Overview</h1>
+          <p>Welcome back, Admin! Here is what's happening today.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="window.location.href='admin-members.html'">+ Add Member</button>
+          <button class="btn" style="background: var(--glass-bg); color: white;" onclick="window.location.href='payments.html'">Record Payment</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="glass-card stat-card">
+          <h3>Total Members</h3>
+          <div class="value" id="totalMembers">--</div>
+        </div>
+        <div class="glass-card stat-card">
+          <h3>Active Trainers</h3>
+          <div class="value" id="totalTrainers">--</div>
+        </div>
+        <div class="glass-card stat-card">
+          <h3>Classes Today</h3>
+          <div class="value" id="totalClasses">--</div>
+        </div>
+        <div class="glass-card stat-card">
+          <h3>Revenue (This Month)</h3>
+          <div class="value" id="totalRevenue">$0</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="glass-card">
+          <h3 style="margin-bottom: 1rem;">Revenue Overview</h3>
+          <canvas id="revenueChart"></canvas>
+        </div>
+        <div class="glass-card">
+          <h3 style="margin-bottom: 1rem;">Class Enrollments</h3>
+          <canvas id="classChart"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    function logoutAdmin() {
+      sessionStorage.removeItem("adminLoggedIn");
+      window.location.href = "admin-login.html";
+    }
+
+    let revenueChartInstance = null;
+    let classChartInstance = null;
+    
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchStats();
+    });
+    
+    async function fetchStats() {
+      try {
+        const stats = await callApi('/reports/stats', 'GET');
+        if (stats) {
+          // Update KPI cards
+          document.getElementById('totalMembers').innerText = stats.totalMembers || 0;
+          document.getElementById('totalTrainers').innerText = stats.activeTrainers || 0;
+          document.getElementById('totalClasses').innerText = stats.activeClasses || 0;
+          document.getElementById('totalRevenue').innerText = '$' + (stats.totalRevenue || 0).toLocaleString();
+          
+          // Update Revenue Chart
+          const revCtx = document.getElementById('revenueChart').getContext('2d');
+          const revLabels = stats.revenueChartData ? Object.keys(stats.revenueChartData).map(m => m.substring(0,3)) : [];
+          const revData = stats.revenueChartData ? Object.values(stats.revenueChartData) : [];
+          
+          if(revLabels.length === 0) {
+              revLabels.push('No Data');
+              revData.push(0);
+          }
+
+          if(revenueChartInstance) revenueChartInstance.destroy();
+          revenueChartInstance = new Chart(revCtx, {
+            type: 'line',
+            data: {
+              labels: revLabels,
+              datasets: [{
+                label: 'Revenue ($)',
+                data: revData,
+                borderColor: '#0ea5e9',
+                backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { labels: { color: '#f8fafc' } } },
+              scales: {
+                x: { ticks: { color: '#94a3b8' } },
+                y: { ticks: { color: '#94a3b8' } }
+              }
+            }
+          });
+
+          // Update Class Chart
+          const classCtx = document.getElementById('classChart').getContext('2d');
+          const classLabels = stats.classesChartData ? Object.keys(stats.classesChartData) : [];
+          const classData = stats.classesChartData ? Object.values(stats.classesChartData) : [];
+          
+          if(classLabels.length === 0) {
+              classLabels.push('No Classes');
+              classData.push(1);
+          }
+
+          if(classChartInstance) classChartInstance.destroy();
+          classChartInstance = new Chart(classCtx, {
+            type: 'doughnut',
+            data: {
+              labels: classLabels,
+              datasets: [{
+                data: classData,
+                backgroundColor: ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } }
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error fetching stats:', e);
+      }
+    }
+  </script>
+</body>
+</html>

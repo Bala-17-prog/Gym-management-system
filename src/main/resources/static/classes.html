@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    if (sessionStorage.getItem("adminLoggedIn") !== "true") {
+      window.location.href = "admin-login.html";
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Classes - Power Gym</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h2>⚡ Power Gym</h2>
+      <nav class="nav-links">
+        <a href="index.html">📊 Dashboard</a>
+        <a href="admin-members.html">👥 Members</a>
+        <a href="trainers.html">🏋️ Trainers</a>
+        <a href="classes.html" class="active">📅 Classes</a>
+        <a href="payments.html">💳 Payments</a>
+        <a href="attendance.html">🕒 Attendance</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>Classes & Schedule</h1>
+          <p>Organize gym classes and assign trainers.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openClassModal()">+ Schedule Class</button>
+      </div>
+
+      <div class="glass-card">
+        <table id="classesTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Class Name</th>
+              <th>Schedule Time</th>
+              <th>Trainer</th>
+              <th>Capacity</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Class Modal -->
+  <div class="modal-backdrop" id="addClassModal">
+    <div class="glass-card modal-content">
+      <h2 id="modalTitle" style="margin-bottom: 1.5rem;">Schedule New Class</h2>
+      <form id="addClassForm" onsubmit="addClass(event)">
+        <input type="hidden" id="cId">
+        <div class="form-group">
+          <label>Class Name</label>
+          <input type="text" id="cName" class="form-control" placeholder="e.g. Morning Yoga" required>
+        </div>
+        <div class="form-group">
+          <label>Schedule Time (YYYY-MM-DDTHH:MM)</label>
+          <input type="datetime-local" id="cTime" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Max Capacity</label>
+          <input type="number" id="cCap" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Trainer</label>
+          <select id="cTrainer" class="form-control" required>
+            <!-- Populated by JS -->
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 2rem;">
+          <button type="button" class="btn" style="background: rgba(255,255,255,0.1); color: white; flex: 1;" onclick="hideModal('addClassModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Schedule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- View Enrolled Members Modal -->
+  <div class="modal-backdrop" id="viewMembersModal">
+    <div class="glass-card modal-content" style="max-width: 600px;">
+      <h2 id="membersModalTitle" style="margin-bottom: 1.5rem;">Enrolled Members</h2>
+      <div style="max-height: 400px; overflow-y: auto;">
+        <table id="enrolledMembersTable" style="width: 100%; text-align: left; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <th style="padding-bottom: 10px;">Name</th>
+              <th style="padding-bottom: 10px;">Email</th>
+              <th style="padding-bottom: 10px;">Phone</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top: 2rem; text-align: right;">
+        <button type="button" class="btn" style="background: rgba(255,255,255,0.1); color: white; padding: 0.5rem 1rem;" onclick="hideModal('viewMembersModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    function logoutAdmin() {
+      sessionStorage.removeItem("adminLoggedIn");
+      window.location.href = "admin-login.html";
+    }
+
+    function showModal(id) { document.getElementById(id).classList.add('show'); }
+    function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    async function openClassModal() {
+      // Load trainers into select dropdown first
+      const trainers = await callApi('/trainers', 'GET');
+      const select = document.getElementById('cTrainer');
+      select.innerHTML = '<option value="">Select a Trainer</option>';
+      if (trainers) {
+        trainers.forEach(t => {
+          select.innerHTML += `<option value="${t.id}">${t.name} (${t.specialization})</option>`;
+        });
+      }
+      showModal('addClassModal');
+    }
+
+    async function loadClasses() {
+      const result = await callApi('/classes', 'GET');
+      if (result) {
+        const tbody = document.querySelector('#classesTable tbody');
+        tbody.innerHTML = '';
+        if (result.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #aaa;">No classes found. Schedule one above!</td></tr>';
+            return;
+        }
+        result.forEach(c => {
+          const tName = c.trainer ? c.trainer.name : 'Unassigned';
+          const timeStr = new Date(c.scheduleTime).toLocaleString();
+          tbody.innerHTML += `
+            <tr>
+              <td>${c.id}</td>
+              <td><strong>${c.name}</strong></td>
+              <td>${timeStr}</td>
+              <td>${tName}</td>
+              <td>${c.maxCapacity}</td>
+              <td>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--secondary); color: white;" onclick='viewEnrolledMembers(${c.id}, "${c.name}")'>View Members</button>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--primary); color: white;" onclick='editClass(${JSON.stringify(c)})'>Edit</button>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--danger); color: white;" onclick="deleteClass(${c.id})">Delete</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+    }
+
+    async function viewEnrolledMembers(classId, className) {
+       document.getElementById('membersModalTitle').innerText = 'Enrolled Members - ' + className;
+       const tbody = document.querySelector('#enrolledMembersTable tbody');
+       tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">Loading...</td></tr>';
+       showModal('viewMembersModal');
+
+       try {
+           const enrollments = await callApi(`/classes/${classId}/enrollments`, 'GET');
+           tbody.innerHTML = '';
+           if (!enrollments || enrollments.length === 0) {
+               tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #aaa;">No members enrolled yet.</td></tr>';
+           } else {
+               enrollments.forEach(e => {
+                   tbody.innerHTML += `
+                     <tr>
+                        <td>${e.user.name}</td>
+                        <td>${e.user.email}</td>
+                        <td>${e.user.phone}</td>
+                     </tr>
+                   `;
+               });
+           }
+       } catch (err) {
+           tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error loading members.</td></tr>';
+       }
+    }
+
+    async function editClass(c) {
+      await openClassModal();
+      document.getElementById('cId').value = c.id;
+      document.getElementById('cName').value = c.name;
+      // Format date for datetime-local (YYYY-MM-DDTHH:MM)
+      const d = new Date(c.scheduleTime);
+      const formatted = d.toISOString().slice(0, 16);
+      document.getElementById('cTime').value = formatted;
+      document.getElementById('cCap').value = c.maxCapacity;
+      if(c.trainer) document.getElementById('cTrainer').value = c.trainer.id;
+      document.getElementById('modalTitle').innerText = 'Edit Class';
+    }
+
+    async function addClass(e) {
+      e.preventDefault();
+      const trainerId = document.getElementById('cTrainer').value;
+      const id = document.getElementById('cId').value;
+      const data = {
+        name: document.getElementById('cName').value,
+        scheduleTime: document.getElementById('cTime').value,
+        maxCapacity: parseInt(document.getElementById('cCap').value),
+        trainer: { id: parseInt(trainerId) }
+      };
+      
+      const method = id ? 'PUT' : 'POST';
+      const endpoint = id ? `/classes/${id}` : '/classes';
+      
+      const res = await callApi(endpoint, method, data);
+      if (res) {
+        hideModal('addClassModal');
+        document.getElementById('addClassForm').reset();
+        document.getElementById('cId').value = '';
+        document.getElementById('modalTitle').innerText = 'Schedule New Class';
+        loadClasses();
+      }
+    }
+
+    async function deleteClass(id) {
+      if (confirm("Delete this class?")) {
+        await callApi(`/classes/${id}`, 'DELETE');
+        loadClasses();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadClasses);
+  </script>
+</body>
+</html>

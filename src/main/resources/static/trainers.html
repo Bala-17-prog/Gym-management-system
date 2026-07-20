@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    if (sessionStorage.getItem("adminLoggedIn") !== "true") {
+      window.location.href = "admin-login.html";
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trainers - Power Gym</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h2>⚡ Power Gym</h2>
+      <nav class="nav-links">
+        <a href="index.html">📊 Dashboard</a>
+        <a href="admin-members.html">👥 Members</a>
+        <a href="trainers.html" class="active">🏋️ Trainers</a>
+        <a href="classes.html">📅 Classes</a>
+        <a href="payments.html">💳 Payments</a>
+        <a href="attendance.html">🕒 Attendance</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>Trainers</h1>
+          <p>Manage your gym's personal trainers.</p>
+        </div>
+        <button class="btn btn-primary" onclick="showModal('addTrainerModal')">+ Add Trainer</button>
+      </div>
+
+      <div class="glass-card">
+        <table id="trainersTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Specialization</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data will be populated here by JS -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Trainer Modal -->
+  <div class="modal-backdrop" id="addTrainerModal">
+    <div class="glass-card modal-content">
+      <h2 id="modalTitle" style="margin-bottom: 1.5rem;">Add New Trainer</h2>
+      <form id="addTrainerForm" onsubmit="addTrainer(event)">
+        <input type="hidden" id="tId">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="tName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Specialization</label>
+          <input type="text" id="tSpec" class="form-control" placeholder="e.g. Bodybuilding, Yoga" required>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="tPhone" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="tEmail" class="form-control">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 2rem;">
+          <button type="button" class="btn" style="background: rgba(255,255,255,0.1); color: white; flex: 1;" onclick="hideModal('addTrainerModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Save Trainer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    function logoutAdmin() {
+      sessionStorage.removeItem("adminLoggedIn");
+      window.location.href = "admin-login.html";
+    }
+
+    function showModal(id) {
+      document.getElementById(id).classList.add('show');
+    }
+
+    function hideModal(id) {
+      document.getElementById(id).classList.remove('show');
+    }
+
+    async function loadTrainers() {
+      const result = await callApi('/trainers', 'GET');
+      if (result) {
+        const tbody = document.querySelector('#trainersTable tbody');
+        tbody.innerHTML = '';
+        if (result.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #aaa;">No trainers found. Add one above!</td></tr>';
+            return;
+        }
+        result.forEach(t => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${t.id}</td>
+              <td>${t.name}</td>
+              <td><span class="badge badge-success">${t.specialization}</span></td>
+              <td>${t.phone || '-'}</td>
+              <td>${t.email || '-'}</td>
+              <td>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--primary); color: white;" onclick='editTrainer(${JSON.stringify(t)})'>Edit</button>
+                <button class="btn" style="padding: 0.4rem 0.8rem; background: var(--danger); color: white;" onclick="deleteTrainer(${t.id})">Delete</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+    }
+    
+    function editTrainer(t) {
+        document.getElementById('tId').value = t.id;
+        document.getElementById('tName').value = t.name;
+        document.getElementById('tSpec').value = t.specialization;
+        document.getElementById('tPhone').value = t.phone || '';
+        document.getElementById('tEmail').value = t.email || '';
+        document.getElementById('modalTitle').innerText = 'Edit Trainer';
+        showModal('addTrainerModal');
+    }
+
+    async function addTrainer(e) {
+      e.preventDefault();
+      const id = document.getElementById('tId').value;
+      const data = {
+        name: document.getElementById('tName').value,
+        specialization: document.getElementById('tSpec').value,
+        phone: document.getElementById('tPhone').value,
+        email: document.getElementById('tEmail').value
+      };
+      
+      const method = id ? 'PUT' : 'POST';
+      const endpoint = id ? `/trainers/${id}` : '/trainers';
+      
+      const res = await callApi(endpoint, method, data);
+      if (res) {
+        hideModal('addTrainerModal');
+        document.getElementById('addTrainerForm').reset();
+        document.getElementById('tId').value = '';
+        document.getElementById('modalTitle').innerText = 'Add New Trainer';
+        loadTrainers();
+      }
+    }
+
+    async function deleteTrainer(id) {
+      if (confirm("Are you sure you want to delete this trainer?")) {
+        await callApi(`/trainers/${id}`, 'DELETE');
+        loadTrainers();
+      }
+    }
+
+    // Load initially
+    document.addEventListener("DOMContentLoaded", loadTrainers);
+  </script>
+</body>
+</html>

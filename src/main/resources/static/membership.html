@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Membership</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        body {
+            background: url('images/kowsik1.jpg') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .membership-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .membership-container h2 {
+            font-size: 32px;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        form input, form button {
+            padding: 12px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        form button {
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        form button:hover {
+            background-color: #357ab7;
+        }
+    </style>
+</head>
+<body>
+    <div class="membership-container">
+        <h2>Membership</h2>
+        <form id="addMembership">
+            <input type="number" name="userId" placeholder="User ID" required>
+            <input type="text" name="type" placeholder="Membership Type" required>
+            <input type="date" name="startDate" required>
+            <input type="number" name="durationMonths" placeholder="Duration (months)" required>
+            <button type="submit">Add Membership</button>
+        </form>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    // Must be logged in as user
+    if (!sessionStorage.getItem("jwtToken")) {
+      window.location.href = "user.html";
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Member Dashboard - Power Gym</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar">
+      <h2>⚡ Power Gym</h2>
+      <nav class="nav-links">
+        <a href="#" id="nav-profile" class="active" onclick="showSection('profile-section', this)">👤 My Profile</a>
+        <a href="#" id="nav-membership" onclick="showSection('membership-section', this)">💳 My Membership</a>
+        <a href="#" id="nav-payments" onclick="showSection('payments-section', this)">💰 My Payments</a>
+        <a href="#" id="nav-attendance" onclick="showSection('attendance-section', this)">📅 My Attendance</a>
+        <a href="#" id="nav-classes" onclick="showSection('classes-section', this)">🏋️ Book Classes</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutUser()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="header">
+        <h1 id="welcomeMessage">Welcome back!</h1>
+        <p>Here are your membership details and activities.</p>
+        
+        <!-- Dynamic Notifications -->
+        <div id="notificationsContainer" style="margin-top: 1.5rem; display: flex; gap: 10px; flex-direction: column;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div id="profile-section" class="glass-card dashboard-section" style="margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary-accent);">My Profile Details</h3>
+        <p><strong>Name:</strong> <span id="pName"></span></p>
+        <p><strong>Email:</strong> <span id="pEmail"></span></p>
+        <p><strong>Phone:</strong> <span id="pPhone"></span></p>
+      </div>
+
+      <div id="membership-section" class="glass-card dashboard-section" style="margin-bottom: 2rem; display: none;">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary-accent);">My Membership</h3>
+        <p><strong>Plan Type:</strong> <span id="mType">No Active Membership</span></p>
+        <p><strong>Start Date:</strong> <span id="mStart">-</span></p>
+        <p><strong>Duration:</strong> <span id="mDuration">-</span></p>
+      </div>
+
+      <div id="payments-section" class="glass-card dashboard-section" style="margin-bottom: 2rem; display: none;">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary-accent);">My Payments</h3>
+        <table id="myPaymentsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="attendance-section" class="glass-card dashboard-section" style="display: none; margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary-accent);">My Attendance History</h3>
+        <table id="myAttendanceTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="classes-section" class="glass-card dashboard-section" style="display: none;">
+        <h3 style="margin-bottom: 1.5rem; color: var(--primary-accent);">Available Classes</h3>
+        <table id="classesTable">
+          <thead>
+            <tr>
+              <th>Class Name</th>
+              <th>Time</th>
+              <th>Capacity</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="userScript.js"></script>
+  <script>
+    function showSection(sectionId, clickedElement) {
+      // Hide all sections
+      const sections = document.querySelectorAll('.dashboard-section');
+      sections.forEach(sec => sec.style.display = 'none');
+
+      // Show the targeted section
+      document.getElementById(sectionId).style.display = 'block';
+
+      // Update active class on nav links
+      const links = document.querySelectorAll('.nav-links a');
+      links.forEach(link => link.classList.remove('active'));
+      clickedElement.classList.add('active');
+    }
+
+    function logoutUser() {
+      sessionStorage.removeItem("jwtToken");
+      sessionStorage.removeItem("currentUser");
+      window.location.href = "user.html";
+    }
+
+    async function loadUserData() {
+      const userStr = sessionStorage.getItem("currentUser");
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+      
+      document.getElementById('welcomeMessage').innerText = `Welcome back, ${user.name}!`;
+      document.getElementById('pName').innerText = user.name;
+      document.getElementById('pEmail').innerText = user.email;
+      document.getElementById('pPhone').innerText = user.phone;
+
+      // Load user specific payments
+      // Load user specific payments & process notifications
+      const notifContainer = document.getElementById('notificationsContainer');
+      notifContainer.innerHTML = '';
+      
+      try {
+        const payments = await callApi(`/payments/user/${user.id}`, 'GET');
+        if (payments) {
+          const tbody = document.querySelector('#myPaymentsTable tbody');
+          tbody.innerHTML = '';
+          if (payments.length === 0) {
+             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No payments found.</td></tr>';
+          }
+          let pendingCount = 0;
+          payments.forEach(p => {
+            const dateStr = new Date(p.paymentDate).toLocaleString();
+            const badgeClass = p.status === 'PAID' ? 'badge-success' : 'badge-pending';
+            tbody.innerHTML += `
+              <tr>
+                <td>#${p.id}</td>
+                <td><strong>$${p.amount.toFixed(2)}</strong></td>
+                <td>${dateStr}</td>
+                <td><span class="badge ${badgeClass}">${p.status}</span></td>
+              </tr>
+            `;
+            if (p.status === 'PENDING') {
+                pendingCount++;
+                notifContainer.innerHTML += `
+                  <div class="glass-card" style="padding: 1rem; border-left: 4px solid var(--danger);">
+                    <strong><i class="fas fa-exclamation-circle"></i> Action Required:</strong> Payment of $${p.amount.toFixed(2)} is pending.
+                  </div>
+                `;
+            }
+          });
+        }
+      } catch (e) {
+         console.log("Error loading payments");
+      }
+
+      // Load user specific membership
+      try {
+        const memberships = await callApi(`/membership/user/${user.id}`, 'GET');
+        if (memberships && memberships.length > 0) {
+           const latest = memberships[memberships.length - 1]; // Assume last one is active
+           document.getElementById('mType').innerText = latest.type;
+           document.getElementById('mStart').innerText = latest.startDate;
+           document.getElementById('mDuration').innerText = latest.durationMonths + " Months";
+        }
+      } catch (e) {
+         console.log("Error loading membership");
+      }
+
+      // Load user specific attendance
+      try {
+        const attendance = await callApi(`/attendance/user/${user.id}`, 'GET');
+        if (attendance) {
+          const tbody = document.querySelector('#myAttendanceTable tbody');
+          tbody.innerHTML = '';
+          if (attendance.length === 0) {
+             tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #aaa;">No attendance records found.</td></tr>';
+          }
+          attendance.forEach(a => {
+            const badgeClass = a.status === 'Absent' ? 'badge-danger' : 'badge-success';
+            const statusText = a.status || 'Present';
+            tbody.innerHTML += `
+              <tr>
+                <td><strong>${a.date}</strong></td>
+                <td><span class="badge ${badgeClass}">${statusText}</span></td>
+              </tr>
+            `;
+          });
+        }
+      } catch (e) {
+         console.log("Error loading attendance");
+      }
+
+      // Load available classes
+      try {
+        const [classes, myEnrollments] = await Promise.all([
+            callApi('/classes', 'GET'),
+            callApi('/classes/my-enrollments', 'GET').catch(() => [])
+        ]);
+
+        if (classes) {
+          const tbody = document.querySelector('#classesTable tbody');
+          tbody.innerHTML = '';
+          if (classes.length === 0) {
+             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">No classes available.</td></tr>';
+          }
+          classes.forEach(c => {
+            const timeStr = new Date(c.scheduleTime).toLocaleString();
+            const isEnrolled = myEnrollments.some(e => e.gymClass.id === c.id);
+            
+            let actionBtn = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 13px;" onclick="enrollClass(${c.id})">Enroll</button>`;
+            if (isEnrolled) {
+                actionBtn = `<button class="btn" style="padding: 0.3rem 0.6rem; font-size: 13px; background: #334155; color: #94a3b8; cursor: not-allowed;" disabled>Enrolled</button>`;
+            }
+
+            tbody.innerHTML += `
+              <tr>
+                <td><strong>${c.name}</strong></td>
+                <td>${timeStr}</td>
+                <td><span class="badge badge-pending">Max ${c.maxCapacity}</span></td>
+                <td>${actionBtn}</td>
+              </tr>
+            `;
+          });
+        }
+      } catch (e) {
+         console.log("Error loading classes");
+      }
+    }
+
+    async function enrollClass(classId) {
+       try {
+         const res = await fetch(`/api/classes/${classId}/enroll`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('jwtToken') }
+         });
+         const text = await res.text();
+         if(res.ok) {
+            alert('Successfully enrolled!');
+            loadUserData(); // Refresh to show Enrolled
+         } else {
+            alert('Could not enroll: ' + text);
+         }
+       } catch (e) {
+         alert('Error enrolling in class');
+       }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadUserData);
+  </script>
+</body>
+</html>

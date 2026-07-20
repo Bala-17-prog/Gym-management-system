@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Track Attendance</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      background: url('images/kowsik1.jpg') no-repeat center center fixed;
+      background-size: cover;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .attendance-container {
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .attendance-container h2 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .attendance-container p {
+      margin-bottom: 25px;
+      font-size: 16px;
+      color: #555;
+    }
+
+    input[type="date"], button {
+      padding: 12px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background-color: #4a90e2;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: #357ab7;
+    }
+
+    #attendanceResults {
+      text-align: left;
+      margin-top: 20px;
+    }
+
+    #attendanceResults h3 {
+      color: #222;
+    }
+
+    #attendanceResults ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    #attendanceResults li {
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="attendance-container">
+    <h2>Track Attendance</h2>
+    <p>Select a date to view gym members who were present.</p>
+    <input type="date" id="attendanceDate" />
+    <button onclick="trackAttendance()">Track Attendance</button>
+    <div id="attendanceResults"></div>
+  </div>
+
+  <script>
+    async function trackAttendance() {
+      const date = document.getElementById('attendanceDate').value;
+      const resultsContainer = document.getElementById('attendanceResults');
+
+      if (!date) {
+        alert('Please select a date');
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:8080/api/attendance/track/${date}`);
+        if (response.ok) {
+          const users = await response.json();
+          if (users.length > 0) {
+            let resultsHTML = `<h3>Users Present on ${date}:</h3><ul>`;
+            users.forEach(user => {
+              resultsHTML += `<li>${user.name} (${user.email})</li>`;
+            });
+            resultsHTML += '</ul>';
+            resultsContainer.innerHTML = resultsHTML;
+          } else {
+            resultsContainer.innerHTML = '<p>No users present on this date.</p>';
+          }
+        } else {
+          resultsContainer.innerHTML = '<p>Error fetching attendance data.</p>';
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        resultsContainer.innerHTML = '<p>Error fetching attendance data.</p>';
+      }
+    }
+  </script>
+</body>
+</html>
