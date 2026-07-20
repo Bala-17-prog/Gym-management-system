@@ -26,14 +26,8 @@ A comprehensive Gym Management System built with Java, Spring Boot, and MySQL. T
 * MySQL Server (running locally on port 3306)
 
 ### Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Bala-17-prog/Gym-management-system.git
-   cd Gym-management-system
-   ```
-2. Configure your MySQL database credentials and Gmail App Password in `src/main/resources/application.properties`.
-3. Build and run the application:
+1. Build and run the application:
    ```bash
    ./mvnw spring-boot:run
    ```
-4. Access the application in your browser at `http://localhost:8080` (or the port specified in your console logs).
+2. Access the application in your browser at `http://localhost:8080` (or the port specified in your console logs).
